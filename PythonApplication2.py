@@ -1,6 +1,7 @@
 #Program written to solve a challenge set by www.recruitahacker.net
 from math import log
 from time import sleep
+from random import randint
 from sys import platform
 import re
 import os
@@ -13,9 +14,8 @@ elif platform == "win32":
 text = open("decipher.txt", "r")
 keyfound = False
 keys2 = []
-usedkeys = []
-possiblekeys = []
-keygens = {}
+keygens = {0:""}
+mutate = ""
 tough = False
 class VCipher:
         def __init__(self):
@@ -113,67 +113,92 @@ class VCipher:
                 if not v in d.keys():
                     d[v] = 1
                 else: d[v] += 1
- 
+
+        def key_mutation(self, key):
+            mutated_keys = []
+            mutated_keys.append(key)
+            for xyz in range(25):
+                mutatedkey = ""
+                keytomutate = randint(0, len(key)-1)
+                timer = 0
+                for L in key:
+                    if timer == keytomutate:
+                        mutatedkey += unichr((ord("Z") - randint(0, 24)))
+                        timer += 1
+                    else:
+                        mutatedkey += L
+                        timer += 1
+                mutated_keys.append(str(mutatedkey))
+            return mutated_keys
+
         def Crack(self, cipherText, pathToEnglishDict, candidateCount, passPercentage):
-                #print "Cracking...\n{0}".format(cipherText)
+                global keygens
+                global mutate
                 with open(pathToEnglishDict) as f:
                         Dictionary = [x.strip('\n') for x in f.readlines()]
                 Trimmed = self.Trim(cipherText)
                 KeyLengthsDict = self.GetLikelyKeyLengths(Trimmed)
                 KeyLengths = sorted(KeyLengthsDict, key= KeyLengthsDict.__getitem__, reverse=True)
-                #print "Found {0} candidate key lengths".format(len(KeyLengths))
                 for length in KeyLengths:
+                        timer = 0
+                        leader = ""
                         #print "Testing Length: {0}".format(length)
-                        Keys = self.TuringCheck(Trimmed, length, candidateCount)
-                        for key in Keys:
-                                #print "     Testing Key: {0}".format(key)
-
-                                PlainText = self.TrimWithSpaces(self.Decrypt(cipherText, key))
+                        if mutate == "":
+                            Keys = self.TuringCheck(Trimmed, length, candidateCount)
+                        else:
+                            Keys = []
+                        newkeys = "QWERTY"
+                        if mutate != "":
+                            newkeys = self.key_mutation(mutate)
+                        for x in newkeys:
+                            Keys.append(x)
+                        for generated_key in Keys:
+                                PlainText = self.TrimWithSpaces(self.Decrypt(cipherText, generated_key))
                                 Words = PlainText.split()
                                 EnglishWordCount = 0
-                                if tough:
-                                    max = 10.1
-                                    min = 9.8
-                                    for words in Dictionary:
-                                        if words in PlainText:
-                                            EnglishWordCount += 1
-                                else:
-                                    max = 1.1
-                                    min = (passPercentage/100.0)
-                                    for word in Words:
-                                        if word in Dictionary: EnglishWordCount += 1
+                                max = 1.1
+                                min = (passPercentage/100.0)
+                                for word in Words:
+                                    if word in Dictionary: EnglishWordCount += 1
                                 Percentage = float(EnglishWordCount) / len(Words)
-                                #print "          Percentage of english words in sample: %{0}".format(Percentage * 100)
                                 if Percentage >= min and Percentage < max:
                                         print "-------------"
                                         print "Cracked!"
                                         print ""
-                                        print "Key = {0}".format(key)
+                                        print "Key = {0}".format(generated_key)
                                         print ""
-                                        print self.Decrypt(cipherText, key)
-                                        keys2.append(key)
+                                        print self.Decrypt(cipherText, generated_key)
+                                        keys2.append(generated_key)
+                                        file = open("possiblekeys.txt", "a")
+                                        output_text = str("\n \n" + "Key: " + generated_key + " " + str(int(Percentage*100))[0:3] + " %" + "\n \n" + cipherText + "\n \n" + self.Decrypt(cipherText, generated_key))
+                                        file.write(output_text)
+                                        file.close()
                                         return
-                                elif Percentage > 0.357 and Percentage < 1.1:
-                                    possiblekeys.append(str(Percentage*100) + "    " + key + "\n")
-                                if key == Keys[0]:
+                                if timer == 0:
                                     screenimage = str(int(Percentage*100))[0:3]
                                     if len(screenimage) == 1:
                                         gap = "  "
                                     elif len(screenimage) == 2:
                                         gap = " "
-                                    print screenimage, "%", gap ,key[:20]
-                                    keygens[int(screenimage)] = key
+                                    print screenimage, "%", gap ,generated_key[:20]
+                                    timer += 1
+                                keygens[(Percentage*100)] = generated_key
+
+                                
 
                 print "Regenerating"
-                clear()
                 cap = 0
                 top = ""
                 for key in keygens:
                     if key > cap:
                         cap = key
                         top = keygens[key]
-
-                print "Mosr accurate: ", top 
+                        mutate = keygens[key]
+                def ihadtomakethisafunction(key):
+                    clear()
+                    print "Most accurate: ", top , str(cap)[:4], "%"
+                    print self.Decrypt(cipherText, key), "\n"
+                ihadtomakethisafunction(mutate)
 
  
  
@@ -240,14 +265,14 @@ text.close()
 tocode = tocode.lower()
 lol = VCipher()
 keytest = 26
-match = 40
+match = 65
 dicnum = 0
 dic1 = "dict1.txt"
 dic2 = "dict2.txt"
 dic3 = "dict3.txt"
 dics = [dic1, dic2, dic3]
 attempts = 0
-istough = raw_input("Slow/Fast? s/f :")
+istough = ""
 if istough == "s":
     tough = True
 clear()
@@ -256,23 +281,6 @@ print ""
 
 while len(keys2) < 1:
     lol.Crack(tocode, dics[dicnum], keytest, match)
-    #print keytest, match, dicnum
-    keyfolder = open("possiblekeys.txt", "r+")
-    keys3 = []
-    for lines in possiblekeys:
-        keys3.append(lines)
-    keys3.sort()
-    sorter = 9
-    while sorter > 0:
-        file1 = open("possiblekeys.txt", "a")
-        for lines in keys3:
-            if lines[0] == str(sorter):
-                file1.write(lines)
-                keys3.remove(lines)
-        sorter -= 1
-        file1.close()
-
-
     if attempts > 2:
         dicnum += 1
     if attempts > 10:
