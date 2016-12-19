@@ -1,3 +1,4 @@
+#!/usr/bin/env python 
 #Program written to solve a challenge set by www.recruitahacker.net
 from math import log
 from time import sleep
