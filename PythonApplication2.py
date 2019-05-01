@@ -124,7 +124,7 @@ class VCipher:
                 timer = 0
                 for L in key:
                     if timer == keytomutate:
-                        mutatedkey += unichr((ord("Z") - randint(0, 24)))
+                        mutatedkey += unichr((ord("Z") - randint(0, 25)))
                         timer += 1
                     else:
                         mutatedkey += L
@@ -174,6 +174,7 @@ class VCipher:
                                         output_text = str("\n \n" + "Key: " + generated_key + " " + str(int(Percentage*100))[0:3] + " %" + "\n \n" + cipherText + "\n \n" + self.Decrypt(cipherText, generated_key))
                                         file.write(output_text)
                                         file.close()
+                                        raw_input()
                                         return
                                 if timer == 0:
                                     screenimage = str(int(Percentage*100))[0:3]
